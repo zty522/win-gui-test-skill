@@ -42,9 +42,11 @@ class TestConfig(unittest.TestCase):
 
 
 class TestScreenshot(unittest.TestCase):
-    def test_capture_failure_returns_none(self):
-        """With no mss or PIL available, capture should return None."""
-        result = capture("/nonexistent/dir/file.png", fallback=False)
+    @patch("scripts.utils.screenshot._screenshot_mss", return_value=False)
+    @patch("scripts.utils.screenshot._screenshot_pil", return_value=False)
+    def test_capture_failure_returns_none(self, mock_pil, mock_mss):
+        """With both mss and PIL mocked to fail, capture should return None."""
+        result = capture("/nonexistent/dir/file.png", fallback=True)
         self.assertIsNone(result)
 
 
