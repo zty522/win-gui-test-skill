@@ -1,128 +1,221 @@
-# win-gui-test-skill
+# WinGUI Test Skill
 
-Windows GUI 自动化测试与视觉分析技能。从 WSL 内部通过 Python（pywinauto + OpenCV）操控 Windows 原生 GUI 程序，进行自动化测试、视觉分析和竞品对比。
+Automated Windows GUI testing and visual analysis toolkit. From **WSL** or any Unix shell, drive native Windows applications via Python (pywinauto + OpenCV) — take screenshots, inspect controls, click buttons, scroll lists, and analyze visual styles of any desktop app.
 
-## 功能
+## Features
 
-- 🖥️ **窗口/控件发现** — 列出所有窗口、枚举控件树
-- 📸 **截图 + 自动降级** — mss 为主，PIL.ImageGrab 兜底（锁屏也能截）
-- 🎯 **精准操作** — 按控件名或坐标点击、键盘输入、滚轮滚动
-- 🔬 **视觉分析** — 尺寸一致性检测、颜色/边框提取、圆角估算
-- 🏭 **竞品对比** — 截图分析微信/QQ/Edge 等应用的 CSS 参数
-- 📋 **结构化 JSON 输出** — 所有命令返回 JSON，便于程序消费
+| Capability | Description |
+|-----------|-------------|
+| 🖥️ **Window/Control Discovery** | List all visible windows, enumerate the full UIA control tree |
+| 📸 **Screenshot (with fallback)** | Primary: `mss` (fast, multi-monitor). Fallback: `PIL.ImageGrab` (works on lock screen) |
+| 🎯 **Precision Clicking** | Click by control name or absolute screen coordinates |
+| ⌨️ **Keyboard Simulation** | Send any keystrokes to a focused window |
+| 🔬 **Visual Analysis** | Detect element size consistency, dominant colors, border radius, font hints |
+| 🏭 **Competitor Analysis** | Snapshot WeChat / QQ / Edge and reverse-engineer their CSS parameters |
+| 📋 **Structured JSON Output** | Every command returns well-formed JSON — pipe to `jq` or consume from Python |
+| ⚙️ **Configurable** | YAML/JSON configuration file, environment variable overrides (`WG_*`), no hardcoded paths |
 
-## 安装
+## Installation
 
 ```bash
-# Python 依赖
 pip install -r requirements.txt
 
-# 从源码安装（可选）
+# Optional: install as a package
 pip install -e .
 ```
 
-### 前置条件
+### Prerequisites
 
-- Windows 10/11（Python 3.8+）
-- WSL2（运行命令端）
-- Windows Python 已安装 pywinauto、opencv-python、pillow、mss
+- **Windows 10/11** with Python 3.8+
+- **WSL2** (or any shell that can call `powershell.exe`)
+- **Windows Python** with these packages installed:
 
-## 配置
+```bash
+# Run on Windows Python (CMD or PowerShell):
+pip install pywinauto opencv-python pillow mss numpy pyyaml
+```
 
-复制配置示例并修改：
+> **⚠️ pip version note**: pywinauto uses 0.x.y versioning. The requirement `pywinauto>=0.6.8` means **version 0.6.8 or newer**, not `>=6.8`.
+
+## Quick Start
+
+```bash
+# 1. Source the tool
+cd win-gui-test-skill
+
+# 2. List all visible windows
+python scripts/cli.py list-all
+
+# 3. List controls inside a specific window
+python scripts/cli.py list-elements "Partner"
+
+# 4. Screenshot
+python scripts/cli.py screenshot "Partner"
+
+# 5. Click a button
+python scripts/cli.py click "Partner" "Send"
+
+# 6. Get precise control geometry
+python scripts/cli.py get-rect "Partner" "Send"
+
+# 7. Full visual analysis (size + color + style)
+python scripts/cli.py analyze "Partner" --out-dir ./reports
+```
+
+## Command Reference
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `list-all` | — | List all visible desktop windows |
+| `list-elements` | `<window_title>` | Enumerate all UI controls in a window |
+| `screenshot` | `[window_title] [--out-dir PATH]` | Capture screenshot (with optional window focus) |
+| `click` | `<window_title> <control_name>` | Click a control by its display name |
+| `click-coords` | `<window_title> <x> <y>` | Click at absolute screen coordinates |
+| `sendkeys` | `<window_title> <keys>` | Send keystrokes to a window |
+| `scroll` | `<window_title> [--target NAME] [--dy N]` | Scroll a control (default: -3 = 3 clicks down) |
+| `get-rect` | `<window_title> <control_name>` | Get precise bounding rectangle of a control |
+| `launch` | `<app_path> [--wait SECONDS]` | Launch an application |
+| `analyze` | `<window_title> [--out-dir PATH]` | Full visual analysis (size + color + style) |
+
+**Global options**:
+| Flag | Description |
+|------|-------------|
+| `--config PATH` | Path to YAML/JSON config file |
+| `--log-dir PATH` | Override log output directory |
+| `--timeout N` | Window lookup timeout in seconds (default: 10) |
+
+## Examples
+
+### Example 1: Partner GUI Test
+
+```bash
+cd examples
+python example1_partner_gui.py
+```
+
+This script:
+1. Launches the Partner desktop application
+2. Lists all UI elements and verifies key buttons exist (Send, File, etc.)
+3. Takes a screenshot
+4. Gets the precise rectangle of the Send button
+
+### Example 2: WeChat Style Analysis
+
+```bash
+python example2_wechat_analysis.py
+```
+
+Before running, make sure WeChat (微信) is open. The script:
+1. Connects to the WeChat window and lists its controls
+2. Takes a screenshot
+3. Analyzes control size consistency
+4. Extracts dominant colors
+5. Estimates chat bubble corner radius
+
+### Example 3: Navigation, Scroll & Click
+
+```bash
+python example3_scroll_click.py
+```
+
+Demonstrates a complete interaction workflow:
+1. Clicks a navigation button ("实例管理")
+2. Lists the instance table
+3. Clicks on a specific instance row
+4. Verifies the configuration panel updates
+5. Takes a final screenshot
+
+## Configuration
+
+Copy the example config and edit:
 
 ```bash
 cp config.example.yaml config.yaml
-# 编辑 config.yaml 中的路径
+nano config.yaml
 ```
 
-所有配置项可通过环境变量覆盖（前缀 `WG_`，点号转下划线）：
+All settings can be overridden via environment variables with the `WG_` prefix:
 
 ```bash
 export WG_SCREENSHOT_DIR="D:/screenshots"
 export WG_RETRY_COUNT=5
+export WG_RETRY_DELAY=2.0
 ```
 
-## 命令行用法
+## Error Handling & Resilience
 
-```bash
-# 基本命令
-python scripts/cli.py list-all
-python scripts/cli.py list-elements "Partner"
-python scripts/cli.py screenshot "Partner"
-python scripts/cli.py click "Partner" "发送"
-python scripts/cli.py click-coords "Partner" 500 300
-python scripts/cli.py sendkeys "Partner" "hello world"
-python scripts/cli.py scroll "Partner" --target "列表" --dy -3
-python scripts/cli.py get-rect "Partner" "发送"
-python scripts/cli.py launch "calc.exe"
+| Scenario | Behavior |
+|----------|----------|
+| **Window not found** | Retries for `timeout` seconds (default 10), then returns clear error |
+| **Click fails** | Retries 3 times (configurable) with 1s delay |
+| **Screenshot fails (lock screen)** | Auto-fallback from `mss` → `PIL.ImageGrab` |
+| **Control not found** | Falls back to descendant scan, then returns descriptive error |
+| **JSON pipeline truncated** | Always write to file (`> /tmp/output.json`) before parsing |
 
-# 全量分析
-python scripts/cli.py analyze "Partner" --out-dir ./reports
-
-# 使用配置文件
-python scripts/cli.py --config my_config.yaml list-elements "微信"
-```
-
-## 示例
-
-```bash
-# 场景 1：测试 Partner GUI
-python examples/example1_partner_gui.py
-
-# 场景 2：分析微信气泡样式
-python examples/example2_wechat_analysis.py
-
-# 场景 3：滚动点击交互测试
-python examples/example3_scroll_click.py
-```
-
-## 项目结构
+## Project Structure
 
 ```
 win-gui-test-skill/
 ├── README.md
-├── SKILL.md
-├── config.example.yaml
+├── SKILL.md                    # Hermes skill definition
+├── config.example.yaml         # Sample configuration
 ├── requirements.txt
 ├── setup.py
 ├── .gitignore
-├── LICENSE
+├── LICENSE                     # Apache 2.0
 ├── scripts/
-│   ├── core.py              # 核心操作（窗口发现、控件交互）
-│   ├── cli.py               # 命令行入口
+│   ├── core.py                 # Main controller (window ops, retry, structured output)
+│   ├── cli.py                  # CLI entry point (argparse)
 │   ├── analyzers/
-│   │   ├── size_analyzer.py      # 尺寸一致性检测
-│   │   ├── color_analyzer.py     # 颜色分析
-│   │   └── style_extractor.py    # CSS 属性推断
+│   │   ├── size_analyzer.py    # Size consistency detection
+│   │   ├── color_analyzer.py   # Color analysis (dominant/edge)
+│   │   └── style_extractor.py # CSS property inference (radius, font)
 │   └── utils/
-│       ├── config.py             # 配置加载（YAML/JSON/环境变量）
-│       ├── logger.py             # 文件+控制台日志（每日轮转）
-│       └── screenshot.py         # 截图（mss + PIL 降级）
+│       ├── config.py           # Config loader (YAML/JSON + env vars)
+│       ├── logger.py           # Timed rotating file + console logger
+│       └── screenshot.py       # Screenshot with automatic fallback
 ├── examples/
 │   ├── example1_partner_gui.py
 │   ├── example2_wechat_analysis.py
 │   └── example3_scroll_click.py
 ├── tests/
-│   └── test_core.py
-├── logs/                    # 运行时日志（自动创建）
-└── screenshots/             # 默认截图目录
+│   └── test_core.py            # Unit tests (config, screenshot, analyzers)
+├── logs/                       # Runtime logs (auto-created)
+└── screenshots/                # Default screenshot directory (auto-created)
 ```
 
-## 开发
+## Development
 
 ```bash
-# 运行单元测试
+# Run unit tests
 python -m pytest tests/ -v
-
-# 或
+# or directly:
 python tests/test_core.py -v
 ```
 
-### 添加新的分析器
+### Adding a New Analyzer
 
-在 `scripts/analyzers/` 下创建模块，实现接收 `(elements: list[dict]) -> dict` 的函数即可。CLI 的 `analyze` 命令会自动收集所有分析器的输出。
+1. Create a module in `scripts/analyzers/` (e.g., `my_analyzer.py`)
+2. Implement a function that takes `elements: list[dict]` and returns a dict
+3. The `analyze` CLI command will automatically pick it up
 
-## 许可证
+## Known Limitations & Workarounds
 
-Apache 2.0
+| Limitation | Workaround |
+|-----------|------------|
+| pywinauto reported sizes include layout margins | Use `setFixedHeight()` instead of `setMinimumHeight()` in Qt apps |
+| QComboBox is undetectable via UIA backend | Infer combo box position from gaps between adjacent button rects |
+| Large JSON output gets truncated in PowerShell pipe | Always redirect to file: `> /tmp/output.json` |
+| Lock screen blocks mss BitBlt capture | Built-in fallback to `PIL.ImageGrab` handles this automatically |
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/my-feature`)
+3. Commit your changes (`git commit -am 'Add my feature'`)
+4. Push (`git push origin feat/my-feature`)
+5. Open a Pull Request
+
+## License
+
+Apache 2.0. See [LICENSE](LICENSE).

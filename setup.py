@@ -11,7 +11,7 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=[
-        "pywinauto>=6.8",
+        "pywinauto>=0.6.8",
         "opencv-python>=4.5",
         "pillow>=9.0",
         "mss>=6.0",
